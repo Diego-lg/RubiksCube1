@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+        <title>Babylon.js sample code</title>
+
+        <!-- Babylon.js -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.6.2/dat.gui.min.js"></script>
+        <script src="https://assets.babylonjs.com/generated/Assets.js"></script>
+        <script src="https://cdn.babylonjs.com/recast.js"></script>
+        <script src="https://cdn.babylonjs.com/ammo.js"></script>
+        <script src="https://cdn.babylonjs.com/havok/HavokPhysics_umd.js"></script>
+        <script src="https://cdn.babylonjs.com/cannon.js"></script>
+        <script src="https://cdn.babylonjs.com/Oimo.js"></script>
+        <script src="https://cdn.babylonjs.com/earcut.min.js"></script>
+        <script src="https://cdn.babylonjs.com/babylon.js"></script>
+        <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+        <script src="https://cdn.babylonjs.com/proceduralTexturesLibrary/babylonjs.proceduralTextures.min.js"></script>
+        <script src="https://cdn.babylonjs.com/postProcessesLibrary/babylonjs.postProcess.min.js"></script>
+        <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.js"></script>
+        <script src="https://cdn.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+        <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+        <script src="https://cdn.babylonjs.com/inspector/babylon.inspector.bundle.js"></script>
+
+        <style>
+            html, body {
+                overflow: hidden;
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+
+            #renderCanvas {
+                width: 100%;
+                height: 100%;
+                touch-action: none;
+            }
+            
+            #canvasZone {
+                width: 100%;
+                height: 100%;
+            }
+        </style>
+    </head>
+<body>
+    <div id="canvasZone"><canvas id="renderCanvas"></canvas></div>
+    <script>
+        var canvas = document.getElementById("renderCanvas");
+
+        var startRenderLoop = function (engine, canvas) {
+            engine.runRenderLoop(function () {
+                if (sceneToRender && sceneToRender.activeCamera) {
+                    sceneToRender.render();
+                }
+            });
+        }
+
+        var engine = null;
+        var scene = null;
+        var sceneToRender = null;
+        var createDefaultEngine = function() { return new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true,  disableWebGL2Support: false}); };
+        var canvas = document.getElementById("renderCanvas");
+var engine = new BABYLON.Engine(canvas, true);
+
+var createScene = function () {
+  var scene = new BABYLON.Scene(engine);
+
+  // Camera
+  var camera = new BABYLON.ArcRotateCamera(
+    "camera",
+    Math.PI / 3,
+    Math.PI / 3,
+    10,
+    new BABYLON.Vector3(0, 0, 0),
+    scene
+  );
+  camera.attachControl(canvas, true);
+
+  // Light
+  var light = new BABYLON.HemisphericLight(
+    "light",
+    new BABYLON.Vector3(0, 1, 0),
+    scene
+  );
+
+  // Skybox
+  var skybox = BABYLON.MeshBuilder.CreateBox("skybox", { size: 100 }, scene);
+  var skyboxMaterial = new BABYLON.StandardMaterial("skyboxMaterial", scene);
+  skyboxMaterial.backFaceCulling = false;
+  skyboxMaterial.reflectionTexture = new BABYLON.CubeTexture(
+    "textures/skybox",
+    scene
+  );
+  skyboxMaterial.reflectionTexture.coordinatesMode =
+    BABYLON.Texture.SKYBOX_MODE;
+  skyboxMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
+  skyboxMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
+  skyboxMaterial.disableLighting = true;
+  skybox.material = skyboxMaterial;
+
+  // Cubes
+  var cubes = [];
+  var cubePositions = [];
+
+  function createCube(position) {
+    var cube = BABYLON.MeshBuilder.CreateBox("cube", { size: 1.4 }, scene);
+    cube.position.copyFrom(position);
+    cubes.push(cube);
+    cubePositions.push(position.clone());
+
+    // Materials and textures
+    var material = new BABYLON.StandardMaterial("material", scene);
+    cube.material = material;
+
+    // Apply rotation animation
+    var rotationAnimation = new BABYLON.Animation(
+      "rotationAnimation",
+      "rotation.y",
+      30,
+      BABYLON.Animation.ANIMATIONTYPE_FLOAT,
+      BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
+    );
+    var rotationKeys = [];
+    rotationKeys.push({ frame: 0, value: 0 });
+    rotationKeys.push({ frame: 100, value: 2 * Math.PI });
+    rotationAnimation.setKeys(rotationKeys);
+    cube.animations.push(rotationAnimation);
+
+    // Apply scaling animation
+    var scalingAnimation = new BABYLON.Animation(
+      "scalingAnimation",
+      "scaling",
+      30,
+      BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
+      BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
+    );
+    var scalingKeys = [];
+    scalingKeys.push({ frame: 0, value: new BABYLON.Vector3(1, 1, 1) });
+    scalingKeys.push({ frame: 50, value: new BABYLON.Vector3(1.5, 1.5, 1.5) });
+    scalingKeys.push({ frame: 100, value: new BABYLON.Vector3(1, 1, 1) });
+    scalingAnimation.setKeys(scalingKeys);
+    cube.animations.push(scalingAnimation);
+
+    // Apply hover effect
+    cube.actionManager = new BABYLON.ActionManager(scene);
+    cube.actionManager.registerAction(
+      new BABYLON.ExecuteCodeAction(
+        BABYLON.ActionManager.OnPointerOverTrigger,
+        function () {
+          cube.scaling.scaleInPlace(1.1);
+        }
+      )
+    );
+    cube.actionManager.registerAction(
+      new BABYLON.ExecuteCodeAction(
+        BABYLON.ActionManager.OnPointerOutTrigger,
+        function () {
+          cube.scaling.scaleInPlace(1 / 1.1);
+        }
+      )
+    );
+
+    scene.beginAnimation(cube, 0, 100, true);
+  }
+
+  // Create cubes
+  for (var i = 0; i < 3; i++) {
+    for (var j = 0; j < 3; j++) {
+      for (var k = 0; k < 3; k++) {
+        var position = new BABYLON.Vector3(i * 2, j * 2, k * 2);
+        createCube(position);
+      }
+    }
+  }
+
+  // Gameplay controls
+  window.addEventListener("keydown", function (event) {
+    var key = event.key.toLowerCase();
+    if (key === "q") {
+      rotateLayer(0, true); // Rotate top layer clockwise
+    } else if (key === "a") {
+      rotateLayer(0, false); // Rotate top layer counter-clockwise
+    } else if (key === "w") {
+      rotateLayer(1, true); // Rotate middle layer clockwise
+    } else if (key === "s") {
+      rotateLayer(1, false); // Rotate middle layer counter-clockwise
+    } else if (key === "e") {
+      rotateLayer(2, true); // Rotate bottom layer clockwise
+    } else if (key === "d") {
+      rotateLayer(2, false); // Rotate bottom layer counter-clockwise
+    } else if (key === "z") {
+      rotateLayer(3, true); // Rotate left layer clockwise
+    } else if (key === "x") {
+      rotateLayer(4, true); // Rotate middle layer (across) clockwise
+    } else if (key === "c") {
+      rotateLayer(5, true); // Rotate right layer clockwise
+    } else if (key === "v") {
+      rotateLayer(3, false); // Rotate left layer counter-clockwise
+    } else if (key === "n") {
+      rotateLayer(4, false); // Rotate middle layer (across) counter-clockwise
+    } else if (key === "m") {
+      rotateLayer(5, false); // Rotate right layer counter-clockwise
+    }
+  });
+
+  var rotating = false;
+
+  function rotateLayer(layer, clockwise) {
+    if (rotating) return;
+    rotating = true;
+
+    var startIndex = layer * 9;
+    var endIndex = startIndex + 8;
+    var layerCubes = cubes.slice(startIndex, endIndex + 1);
+
+    if (!clockwise) layerCubes.reverse();
+
+    var tempPos = cubePositions[startIndex].clone();
+    for (var i = startIndex; i < endIndex; i++) {
+      cubePositions[i].copyFrom(cubePositions[i + 1]);
+    }
+    cubePositions[endIndex].copyFrom(tempPos);
+
+    for (var i = 0; i < layerCubes.length; i++) {
+      var targetIndex = clockwise ? i + 1 : i - 1;
+      if (targetIndex < 0) targetIndex = layerCubes.length - 1;
+      if (targetIndex >= layerCubes.length) targetIndex = 0;
+
+      var targetPos = cubePositions[startIndex + targetIndex];
+      var animation = BABYLON.Animation.CreateAndStartAnimation(
+        "layerRotation",
+        layerCubes[i],
+        "position",
+        60,
+        120,
+        layerCubes[i].position.clone(),
+        targetPos,
+        BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+      );
+    }
+
+    rotating = false;
+  }
+
+  return scene;
+};
+
+var scene = createScene();
+
+// GUI
+var advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI(
+  "UI"
+);
+
+var button = BABYLON.GUI.Button.CreateSimpleButton("button", "Reset");
+button.width = "150px";
+button.height = "40px";
+button.color = "white";
+button.cornerRadius = 20;
+button.background = "green";
+button.onPointerUpObservable.add(function () {
+  resetCubes();
+});
+advancedTexture.addControl(button);
+
+function resetCubes() {
+  for (var i = 0; i < cubes.length; i++) {
+    var cube = cubes[i];
+    cube.position.copyFrom(cubePositions[i]);
+  }
+}
+
+engine.runRenderLoop(function () {
+  scene.render();
+});
+
+window.addEventListener("resize", function () {
+  engine.resize();
+});
+
+                window.initFunction = async function() {
+                    
+                    
+                    
+                    var asyncEngineCreation = async function() {
+                        try {
+                        return createDefaultEngine();
+                        } catch(e) {
+                        console.log("the available createEngine function failed. Creating the default engine instead");
+                        return createDefaultEngine();
+                        }
+                    }
+
+                    window.engine = await asyncEngineCreation();
+        if (!engine) throw 'engine should not be null.';
+        startRenderLoop(engine, canvas);
+        window.scene = createScene();};
+        initFunction().then(() => {sceneToRender = scene                    
+        });
+
+        // Resize
+        window.addEventListener("resize", function () {
+            engine.resize();
+        });
+    </script>
+</body>
+</html>
